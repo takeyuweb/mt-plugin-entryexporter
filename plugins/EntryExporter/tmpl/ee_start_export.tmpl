@@ -1,0 +1,38 @@
+<mt:include name="dialog/header.tmpl" />
+
+<p><__trans phrase="Start the export."></p>
+<p><__trans phrase="Please do not do during other operations."></p>
+
+<mt:setvarblock name="action_buttons">
+  <button
+     type="submit"
+     accesskey="s"
+     title="<__trans phrase="Export and Download Archive (s)">"
+     class="send action primary button">
+    <__trans phrase="Start">
+  </button>
+  <button
+     type="submit"
+     accesskey="x"
+     title="<__trans phrase="Cancel (x)">"
+     class="cancel action button mt-close-dialog">
+    <__trans phrase="Cancel">
+  </button>
+</mt:setvarblock>
+
+<form action="<$MTVar name='script_url'$>" method="GET">
+    <input type="hidden" name="__mode" value="ee_exporting" />
+    <input type="hidden" name="blog_id" value="<$MTVar name='blog_id'$>" />
+    <mt:If name="all_selected">
+        <input type="hidden" name="all_selected" value="1" />
+    </mt:If>
+    <input type="hidden" name="_type" value="entry" />
+    <mt:loop name="id_table">
+        <input type="hidden" name="id" value="<mt:var name='__key__'>" />
+    </mt:loop>
+    
+    <mt:include name="include/actions_bar.tmpl" bar_position="bottom" hide_pager="1" settings_bar="1" />
+</form>
+
+<mt:include name="dialog/footer.tmpl" />
+

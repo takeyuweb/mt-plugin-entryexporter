@@ -1,0 +1,32 @@
+<mt:include name="dialog/header.tmpl" />
+
+<p><__trans phrase="Export finished. Start download."></p>
+
+<p>[<a href="javascript: void(0);" onclick="jQuery('#ee_download').submit(); return false;"><__trans phrase="Manual download here."></a>]</p>
+
+<mt:setvarblock name="action_buttons">
+  <button
+     type="submit"
+     accesskey="x"
+     title="<__trans phrase="Cancel (x)">"
+     class="cancel action button mt-close-dialog">
+    <__trans phrase="Close">
+  </button>
+</mt:setvarblock>
+
+<mt:include name="include/actions_bar.tmpl" bar_position="bottom" hide_pager="1" settings_bar="1" />
+
+<form id="ee_download" action="<$MTVar name='script_url'$>" method="GET">
+    <input type="hidden" name="__mode" value="ee_download" />
+    <input type="hidden" name="blog_id" value="<$MTVar name='blog_id'$>" />
+    <input type="hidden" name="out" value="<$MTVar name='out'$>" />
+</form>
+
+<mt:SetVarBlock name="jq_js_include" append="1">
+jQuery(function(){
+    jQuery('#ee_download').submit();
+});
+</mt:SetVarBlock>
+
+<mt:include name="dialog/footer.tmpl" />
+
