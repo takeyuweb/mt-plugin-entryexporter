@@ -138,7 +138,6 @@ sub _hdlr_ee_exporting {
     }
 }
 
-use File::Find;
 sub _hdlr_ee_exported {
     my $app = shift;
     
@@ -223,7 +222,8 @@ sub _export_entry {
     
     my @categories = ();
     foreach my $category ( @{ $entry->categories() } ) {
-        @categories = ( @categories, $category, \$category->parent_categories() );
+        my @parent_categories = $category->parent_categories();
+        @categories = ( @categories, $category, @parent_categories );
     }
     my %hash = (); @categories = grep { ! $hash{ $_ }++ } @categories;
     my %categories_data;
@@ -287,10 +287,12 @@ sub _dump_object {
     my $column_names = $model->column_names;
     
     if ( $obj->can( 'has_meta' ) && $obj->has_meta ) {
-        require CustomFields::Field;
-        my @fields = CustomFields::Field->load( { blog_id => [ $obj->blog_id, 0 ], obj_type => $type } );
-        for my $field ( @fields ) {
-            push( @$column_names, 'field.' . $field->basename );
+        eval { require CustomFields::Field };
+        unless ( $@ ) {
+            my @fields = MT->model( 'field' )->load( { blog_id => [ $obj->blog_id, 0 ], obj_type => $type } );
+            for my $field ( @fields ) {
+                push( @$column_names, 'field.' . $field->basename );
+            }
         }
     }
     
@@ -337,7 +339,7 @@ sub _write_tempfile {
 sub _regist_tempfile {
     my ( $file ) = @_;
     require MT::Session;
-    my $sess_obj = MT::Session->get_by_key(
+    my $sess_obj = MT->model( 'session' )->get_by_key(
         {   id   => File::Basename::basename( $file ),
             kind => 'TF',
             name => $file,
