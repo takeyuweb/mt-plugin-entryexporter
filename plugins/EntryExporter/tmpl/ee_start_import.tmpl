@@ -1,0 +1,40 @@
+<mt:include name="dialog/header.tmpl" />
+
+<p><__trans phrase="Start the import."></p>
+<p><__trans phrase="Please do not do during other operations."></p>
+
+<mt:setvarblock name="action_buttons">
+  <button
+     type="submit"
+     accesskey="s"
+     title="<__trans phrase="Upload and Import Archive (s)">"
+     class="send action primary button">
+    <__trans phrase="Upload">
+  </button>
+  <button
+     type="submit"
+     accesskey="x"
+     title="<__trans phrase="Cancel (x)">"
+     class="cancel action button mt-close-dialog">
+    <__trans phrase="Cancel">
+  </button>
+</mt:setvarblock>
+
+<form action="<$MTVar name='script_url'$>" method="POST" enctype="multipart/form-data">
+    <input type="hidden" name="__mode" value="ee_importing" />
+    <input type="hidden" name="return_args" id="this_return_args" value="<mt:var name="return_args" escape="html">" />
+    <input type="hidden" name="magic_token" value="<mt:var name="magic_token">" />
+    <input type="hidden" name="blog_id" value="<$MTVar name='blog_id'$>" />
+    <mt:If name="all_selected">
+        <input type="hidden" name="all_selected" value="1" />
+    </mt:If>
+    <input type="hidden" name="_type" value="entry" />
+    
+    
+    <input type="file" name="file"/>
+    
+    <mt:include name="include/actions_bar.tmpl" bar_position="bottom" hide_pager="1" settings_bar="1" />
+</form>
+
+<mt:include name="dialog/footer.tmpl" />
+

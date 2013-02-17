@@ -16,6 +16,11 @@ use vars qw( %Lexicon );
     "Exporting...([_1]-[_2])" => '[_1]件目から[_2]件目をエクスポート中です...',
     'Export finished. Start download.' => 'エクスポートが完了しました。ダウンロードを開始します。',
     'Manual download here.' => '自動でダウンロードが始まらない場合はこちらからダウンロードして下さい',
+    'Import entries'        => 'ブログ記事のインポート',
+    'Start the import.'     => 'インポートを開始します。',
+    'An error in the reading of the ZIP file.' => 'ZIPファイルの展開に失敗しました。ファイルが壊れているか、正しくアップロードされなかった可能性があります。',
+    'Export finished.'      => 'インポートを完了しました。',
+    'Importing...(The remnant number of [_1])' => 'インポート中 残り[_1]件',
 );
 
 1;

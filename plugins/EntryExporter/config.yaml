@@ -14,6 +14,11 @@ applications:
       ee_exporting: $entryexporter::EntryExporter::Plugin::_hdlr_ee_exporting
       ee_exported: $entryexporter::EntryExporter::Plugin::_hdlr_ee_exported
       ee_download: $entryexporter::EntryExporter::Plugin::_hdlr_ee_download
+      ee_start_import: $entryexporter::EntryExporter::Plugin::_hdlr_ee_start_import
+      ee_importing: $entryexporter::EntryExporter::Plugin::_hdlr_ee_importing
+
+content_actions:
+    entry: $entryexporter::EntryExporter::Plugin::_content_actions
 
 list_actions:
     entry: $entryexporter::EntryExporter::Plugin::_list_actions
