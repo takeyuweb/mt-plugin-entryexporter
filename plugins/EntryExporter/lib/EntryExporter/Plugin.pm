@@ -334,12 +334,20 @@ sub _dump_object {
     }
     if ( $type eq 'entry' ) {
         my @placement_data = ();
-        my @placements = MT->model( 'placement' )->load( { entry_id => $obj->id } );
+        my @placements = MT->model( 'placement' )->load( { blog_id => $obj->blog_id, entry_id => $obj->id } );
         foreach my $placement ( @placements ) {
             my %placement_data = _dump_object( $placement );
             push @placement_data, \%placement_data;
         }
         $data{ placements } = \@placement_data;
+        
+        my @objectassets_data = ();
+        my @objectassets = MT->model( 'objectasset' )->load( { blog_id => $obj->blog_id, object_ds => $obj->datasource, object_id => $obj->id } );
+        foreach my $objectasset ( @objectassets ) {
+            my %objectasset_data = _dump_object( $objectasset );
+            push @objectassets_data, \%objectasset_data;
+        }
+        $data{ objectassets } = \@objectassets_data;
     }
     
     return %data;
@@ -556,6 +564,9 @@ sub _import_entry {
         my $old_id = $data->{ id };
         delete $data->{ id };
         
+        my $placements_data = delete $data->{ placements };
+        my $objectassets_data = delete $data->{ objectassets };
+        
         foreach my $field ( keys %$data ) {
             next unless $obj->can( $field );
             my $val = $data->{ $field };
@@ -572,16 +583,21 @@ sub _import_entry {
         foreach my $placement ( @old_placements ) {
             $placement->remove;
         }
-        my $count = 0;
-        foreach my $old_category_id ( keys %categories ) {
+        foreach my $placement_data ( @$placements_data ) {
+            delete $placement_data->{ id };
+            delete $placement_data->{ blog_id };
+            delete $placement_data->{ entry_id };
+            my $old_category_id = delete $placement_data->{ category_id };
             my $category = $categories{ $old_category_id };
             my $placement = MT->model( 'placement' )->new;
+            foreach my $field ( keys %$placement_data ) {
+                next unless $placement->can( $field );
+                $placement->$field( $placement_data->{ $field } );
+            }
             $placement->blog_id( $obj->blog_id );
             $placement->entry_id( $obj->id );
             $placement->category_id( $category->id );
-            $placement->is_primary( $count == 0 ? 1 : 0 );
             $placement->save or die $placement->errstr;
-            $count++;
         }
         
         my @old_objectasset = MT->model( 'objectasset' )->load(
@@ -593,15 +609,23 @@ sub _import_entry {
         foreach my $objectasset ( @old_objectasset ) {
             $objectasset->remove;
         }
-        foreach my $old_asset_id ( keys %assets ) {
+        foreach my $objectasset_data ( @$objectassets_data ) {
+            delete $objectasset_data->{ id };
+            delete $objectasset_data->{ blog_id };
+            delete $objectasset_data->{ object_id };
+            my $old_asset_id = delete $objectasset_data->{ asset_id };
             my $asset = $assets{ $old_asset_id };
             my $objectasset = MT->model( 'objectasset' )->new;
+            foreach my $field ( keys %$objectasset_data ) {
+                next unless $objectasset->can( $field );
+                $objectasset->$field( $objectasset_data->{ $field } );
+            }
             $objectasset->blog_id( $obj->blog_id );
-            $objectasset->object_ds( $obj->datasource );
             $objectasset->object_id( $obj->id );
             $objectasset->asset_id( $asset->id );
             $objectasset->save or die $objectasset->errstr;
         }
+        
         
         $objects{ "entry_@{[ $old_id ]}" } = $obj;
     }
