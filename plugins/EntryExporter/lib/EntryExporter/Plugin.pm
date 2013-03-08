@@ -298,9 +298,13 @@ sub _export_entry {
         _write_tempfile( $path, $blob );
         $assets_data{ $basename } = \%asset_data;
     }
-    
-    
     _write_tempfile( File::Spec->catfile( $entry_dir, "assets.yaml" ), MT::Util::YAML::Dump( \%assets_data ) );
+    
+    my %assets_map;
+    foreach my $asset ( @assets ) {
+        $assets_map{ $asset->id } = $asset->url;
+    }
+    _write_tempfile( File::Spec->catfile( $entry_dir, "assets_map.yaml" ), MT::Util::YAML::Dump( \%assets_map ) );
 }
 
 sub _dump_object {
@@ -577,6 +581,22 @@ sub _import_entry {
         $obj->created_by( $user ? $user->id : undef );
         $obj->modified_by( undef );
         $obj->category_id( undef );
+        
+        my $assets_map_file = File::Spec->catfile( $entry_dir, 'assets_map.yaml' );
+        my $assets_map = MT::Util::YAML::LoadFile( $assets_map_file );
+        if ( $assets_map && %$assets_map ) {
+            my ( $body, $more ) = ( $obj->text, $obj->text_more );
+            foreach my $old_asset_id ( keys %$assets_map ) {
+                my $old_asset_url = $assets_map->{ $old_asset_id };
+                my $asset = $assets{ $old_asset_id };
+                my $asset_url = $asset->url;
+                $body =~ s/$old_asset_url/$asset_url/g if $body;
+                $more =~ s/$old_asset_url/$asset_url/g if $more;
+            }
+            $obj->text( $body );
+            $obj->text_more( $more );
+        }
+        
         $obj->save or die $obj->errstr;
         
         my @old_placements = MT->model( 'placement' )->load( { blog_id => $obj->blog_id, entry_id => $obj->id } );
