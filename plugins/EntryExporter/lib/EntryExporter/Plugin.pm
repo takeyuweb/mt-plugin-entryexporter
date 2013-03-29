@@ -562,7 +562,8 @@ sub _import_entry {
         my $data = MT::Util::YAML::LoadFile( $entry_file );
         
         my $entry_basename = $data->{ basename };
-        my $obj = $entry_basename ? MT->model( 'entry' )->load( { blog_id => $blog->id, basename => $entry_basename } ) : undef;
+        my $entry_created_on = $data->{ created_on };
+        my $obj = $entry_basename ? MT->model( 'entry' )->load( { blog_id => $blog->id, basename => $entry_basename, created_on => $entry_created_on } ) : undef;
         $obj = MT->model( 'entry' )->new unless $obj;
         
         my $old_id = $data->{ id };
