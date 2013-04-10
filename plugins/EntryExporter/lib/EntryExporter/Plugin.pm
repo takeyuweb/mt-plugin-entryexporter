@@ -564,6 +564,10 @@ sub _import_entry {
         my $entry_basename = $data->{ basename };
         my $entry_created_on = $data->{ created_on };
         my $obj = $entry_basename ? MT->model( 'entry' )->load( { blog_id => $blog->id, basename => $entry_basename, created_on => $entry_created_on } ) : undef;
+        if ( $obj && $obj->modified_on > $data->{ modified_on } ) {
+            MT->log( $plugin->translate( 'The same article is the latest destination. id:[_1](src) [_2](dst) title:[_3] modified_on:[_4](src) [_5](dst)', $data->{id}, $obj->id, $obj->title, $data->{modified_on}, $obj->modified_on ) );
+            return;
+        }
         $obj = MT->model( 'entry' )->new unless $obj;
         
         my $old_id = $data->{ id };
@@ -590,6 +594,7 @@ sub _import_entry {
             foreach my $old_asset_id ( keys %$assets_map ) {
                 my $old_asset_url = $assets_map->{ $old_asset_id };
                 my $asset = $assets{ $old_asset_id };
+                next unless $asset;
                 my $asset_url = $asset->url;
                 $body =~ s/$old_asset_url/$asset_url/g if $body;
                 $more =~ s/$old_asset_url/$asset_url/g if $more;
@@ -636,6 +641,10 @@ sub _import_entry {
             delete $objectasset_data->{ object_id };
             my $old_asset_id = delete $objectasset_data->{ asset_id };
             my $asset = $assets{ $old_asset_id };
+            unless ( $asset ) {
+                MT->log( $plugin->translate( 'Asset is not found. id:[_1](src) entry_id:[_2](src) [_3](dst) title:[_4]', $old_asset_id, $old_id, $obj->id, $obj->title ) );
+                next;
+            }
             my $objectasset = MT->model( 'objectasset' )->new;
             foreach my $field ( keys %$objectasset_data ) {
                 next unless $objectasset->can( $field );
@@ -732,6 +741,53 @@ sub _update_or_replace_asset {
         next if defined $child->id;
         _update_or_replace_asset( $child_old_id, $ref_assets );
     }
+}
+
+sub import_entries {
+    my ( $blog, $archive_path ) = @_;
+    my $app = MT->instance;
+    
+    eval { require Archive::Zip };
+    if ( $@ ) {
+        return $app->trans_error( 'Archive::Zip is required.' );
+    }
+    
+    my $filename = File::Basename::basename( $archive_path, '.*' );
+    my $out = $filename . '_' .time;
+    my $dir = File::Spec->catdir( $app->config( 'TempDir' ), $out );
+        
+    require Archive::Zip;
+    my $zip = Archive::Zip->new();
+    unless ( $zip->read( $archive_path ) == 0 ) {
+        return $app->error( $plugin->translate( 'An error in the reading of the ZIP file.' ) );
+    }
+    my @members = $zip->members();
+    foreach my $member ( @members ) {
+        my $name = $member->fileName;
+        $name =~ s!^[/\\]+!!;
+        my $basename = File::Basename::basename( $name );
+        next if ( $basename =~ /^\./ );
+        my $path = File::Spec->catfile ( $dir, $name );
+        $zip->extractMemberWithoutPaths( $member->fileName, $path );
+    }
+    
+    opendir ( DIR, $dir );
+    my @target;
+    while ( defined ( my $path = readdir( DIR ) ) ) {
+        next unless $path !~ /^\./;
+        if ( $path =~ /^entry_\d+/ ) {
+            push @target, File::Spec->catdir( $dir, $path );
+        }
+    }
+    closedir ( DIR );
+
+    foreach my $entry_dir ( @target ) {
+        _import_entry( $blog, $entry_dir );
+        File::Path::rmtree( $entry_dir );
+    }
+    rmdir $dir;
+    
+    1;
 }
 
 1;

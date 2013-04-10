@@ -2,7 +2,7 @@ id: EntryExporter
 name: Entry Exporter
 key: entryexporter
 description: <__trans phrase="_PLUGIN_DESCRIPTION">
-version: 0.4
+version: 0.5
 author_link: http://takeyu-web.com/
 author_name: Yuichi Takeuchi
 l10n_class: EntryExporter::L10N
