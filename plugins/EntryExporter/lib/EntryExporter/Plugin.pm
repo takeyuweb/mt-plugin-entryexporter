@@ -98,15 +98,14 @@ sub _hdlr_ee_start_export {
         return $app->trans_error( 'Archive::Zip is required.' );
     }
     
-    my %id_table =  map { $_ => 1 } $app->param( 'id' );
-    my $all_selected = $app->param( 'all_selected' );
-    $app->setup_filtered_ids;
-    my @filtered_ids = $app->param( 'id' );
+    if ( $app->param( 'all_selected' ) ) {
+        $app->setup_filtered_ids;
+    }
+    my @ids = $app->param( 'id' );
     my %params = (
         blog_id         => $blog->id,
-        $all_selected   ? ( all_selected    => $all_selected )  : (),
         _type           => $type,
-        id_table        => \%id_table,
+        ids             => \@ids,
     );
     $app->build_page('ee_start_export.tmpl', \%params);
 }
@@ -123,13 +122,10 @@ sub _hdlr_ee_exporting {
     my $out = $app->param( 'out' ) || '';
     $out = '' if $out =~ /\W/;
     
-    my %id_table =  map { $_ => 1 } $app->param( 'id' );
-    my $all_selected = $app->param( 'all_selected' );
-    $app->setup_filtered_ids;
-    my @filtered_ids = $app->param( 'id' );
+    my @ids = $app->param( 'id' );
     my %terms = (
         blog_id => $blog->id,
-        id      => \@filtered_ids,
+        id      => \@ids,
     );
     my $args = { offset => $offset, limit =>  $limit, 'sort' => 'id' };
     if ( $out ) {
@@ -156,9 +152,8 @@ sub _hdlr_ee_exporting {
     if ( $start <= $end ) {
         my %params = (
             blog_id         => $blog->id,
-            $all_selected   ? ( all_selected    => $all_selected )  : (),
             _type           => $type,
-            id_table        => \%id_table,
+            ids             => \@ids,
             start           => $start,
             end             => $end,
             page            => $page,
