@@ -64,7 +64,7 @@ plugins/EntryExporter を MovableType がインストールされたディレク
 
 対象が多く、ブラウザからのインポートではタイムアウトなどの問題がある場合、コマンドラインでのインポートが便利です。
 
-    perl tools/import-entries --blog_id=2 path-th-archive/entries-YYYYMMDDHHMMSS.zip
+    perl tools/import-entries --user_id=1 --blog_id=2 path-th-archive/entries-YYYYMMDDHHMMSS.zip
 
 
 ## うまくいかないとき
