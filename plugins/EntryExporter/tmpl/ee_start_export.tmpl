@@ -26,7 +26,7 @@
     <mt:If name="all_selected">
         <input type="hidden" name="all_selected" value="1" />
     </mt:If>
-    <input type="hidden" name="_type" value="entry" />
+    <input type="hidden" name="_type" value="<$MTVar name='_type'$>" />
     <mt:loop name="id_table">
         <input type="hidden" name="id" value="<mt:var name='__key__'>" />
     </mt:loop>

@@ -37,19 +37,25 @@ MTML
 
 sub _content_actions {
     my ( $meth, $component ) = @_;
-
+    my $app = MT->instance;
+    my $type = $app->param( '_type' );
     return {
         'ee_upload' => {
             class       => 'icon-create',
             mode        => 'ee_start_import',
-            label       => $plugin->translate( 'Import entries' ),
+            label       => $plugin->translate( 'Import [_1]', $plugin->translate( $type eq 'entry' ? 'entries' : 'pages' ) ),
             return_args => 1,
-            args        => { dialog => 1 },
+            args        => { dialog => 1, _type => $type },
             dialog      => 1,
             condition   => sub {
                 my $app = MT->instance->app;
                 my $blog = $app->blog;
-                return $blog && $blog->is_blog && $app->can_do( 'upload' ) ? 1 : 0;
+                if ( $type eq 'entry' ) {
+                    return $blog && $blog->is_blog && $app->can_do( 'upload' ) ? 1 : 0;
+                } elsif ( $type eq 'page' ) {
+                    return $blog && $app->can_do( 'upload' ) ? 1 : 0;
+                }
+                return 0;
             },
         },
     };
@@ -58,17 +64,24 @@ sub _content_actions {
 sub _list_actions {
     my ( $meth, $component ) = @_;
     my $app = MT->instance;
+    my $type = $app->param( '_type' );
     my $actions = {
         ee_export => {
-            label       => 'Export entries',
+            label       => $plugin->translate( 'Export [_1]', $plugin->translate( $type eq 'entry' ? 'entries' : 'pages' ) ),
             mode        => 'ee_start_export',
             return_args => 1,
-            args        => { dialog => 1 },
+            args        => { dialog => 1, _type => $type },
             order       => 600,
             dialog      => 1,
             condition   => sub {
                 my $blog = MT->instance->app->blog;
-                return $blog && $blog->is_blog ? 1 : 0;
+                my $blog = $app->blog;
+                if ( $type eq 'entry' ) {
+                    return $blog && $blog->is_blog && $app->can_do( 'upload' ) ? 1 : 0;
+                } elsif ( $type eq 'page' ) {
+                    return $blog && $app->can_do( 'upload' ) ? 1 : 0;
+                }
+                return 0;
             },
         },
     }
@@ -77,6 +90,8 @@ sub _list_actions {
 sub _hdlr_ee_start_export {
     my $app = shift;
     my $blog = $app->blog;
+    my $type = $app->param( '_type' );
+    return $app->trans_error( 'Invalid request' ) unless $type eq 'entry' || $type eq 'page';
     
     eval { require Archive::Zip };
     if ( $@ ) {
@@ -90,7 +105,7 @@ sub _hdlr_ee_start_export {
     my %params = (
         blog_id         => $blog->id,
         $all_selected   ? ( all_selected    => $all_selected )  : (),
-        _type           => $app->param( '_type' ),
+        _type           => $type,
         id_table        => \%id_table,
     );
     $app->build_page('ee_start_export.tmpl', \%params);
@@ -99,7 +114,9 @@ sub _hdlr_ee_start_export {
 sub _hdlr_ee_exporting {
     my $app = shift;
     
-    my $limit = 100;
+    my $type = $app->param( '_type' );
+    return $app->trans_error( 'Invalid request' ) unless $type eq 'entry' || $type eq 'page';
+    my $limit = 20;
     my $blog = $app->blog;
     my $page = $app->param( 'page' ) || 1;
     my $offset = ($page - 1) * $limit;
@@ -120,7 +137,7 @@ sub _hdlr_ee_exporting {
         
         my $text = '';
         my $count = 0;
-        my $iter = MT->model( 'entry' )->load_iter( \%terms, { offset => $offset, limit =>  $limit, 'sort' => 'id' } );
+        my $iter = MT->model( $type )->load_iter( \%terms, { offset => $offset, limit =>  $limit, 'sort' => 'id' } );
         while ( my $entry = $iter->() ) {
             _export_entry( $dir, $entry );
             $count++;
@@ -133,14 +150,14 @@ sub _hdlr_ee_exporting {
     
     my ( $start, $end );
     $start = $offset + 1;
-    my @next_entries = MT->model( 'entry' )->load( \%terms, { offset => $offset, limit =>  $limit } );
+    my @next_entries = MT->model( $type )->load( \%terms, { offset => $offset, limit =>  $limit } );
     $end = $offset + scalar( @next_entries );
     
     if ( $start <= $end ) {
         my %params = (
             blog_id         => $blog->id,
             $all_selected   ? ( all_selected    => $all_selected )  : (),
-            _type           => $app->param( '_type' ),
+            _type           => $type,
             id_table        => \%id_table,
             start           => $start,
             end             => $end,
@@ -153,7 +170,8 @@ sub _hdlr_ee_exporting {
                 mode => 'ee_exported',
                 args => {
                     blog_id => $blog->id,
-                    out     => $out
+                    out     => $out,
+                    _type   => $type
                 }
             )
         );
@@ -164,8 +182,10 @@ sub _hdlr_ee_exported {
     my $app = shift;
     
     my $blog = $app->blog;
+    my $type = $app->param( '_type' );
     my $out = $app->param( 'out' ) || '';
     $out = '' if $out =~ /\W/;
+    return $app->trans_error( 'Invalid request' ) unless $type eq 'entry' || $type eq 'page';
     
     my $dir;
     if ( $out ) {
@@ -196,7 +216,8 @@ sub _hdlr_ee_exported {
     
     my %params = (
         blog_id => $blog->id,
-        out => $out
+        out     => $out,
+        _type    => $type,
     );
     $app->build_page('ee_exported.tmpl', \%params);
 }
@@ -207,13 +228,15 @@ sub _hdlr_ee_download {
     my $blog = $app->blog;
     my $out = $app->param( 'out' ) || '';
     $out = '' if $out =~ /\W/;
+    my $type = $app->param( '_type' );
+    return $app->trans_error( 'Invalid request' ) unless $type eq 'entry' || $type eq 'page';
     
     require MT::Util;
     my @tl = MT::Util::offset_time_list( time, $blog );
     my $ts = sprintf '%04d%02d%02d%02d%02d%02d', $tl[5]+1900, $tl[4]+1, @tl[3,2,1,0];
     
     $app->{ no_print_body } = 1;
-    $app->set_header( 'Content-Disposition' => "attachment; filename=entries-@{[ $ts ]}.zip" );
+    $app->set_header( 'Content-Disposition' => "attachment; filename=@{[ $type eq 'entry' ? 'entries' : 'pages' ]}-@{[ $ts ]}.zip" );
     $app->set_header( 'Pragma' => 'no-cache' );
     $app->send_http_header( 'application/zip' );
     
@@ -234,13 +257,14 @@ sub _export_entry {
     my ( $dir, $entry ) = @_;
     my $app = MT->instance;
 
+    my $type = $entry->can( 'class' ) ? $entry->class : $entry->datasource;
     my %data = _dump_object( $entry );
     
     require MT::Util::YAML;
     
     require File::Spec;
     my $entry_dir = File::Spec->catdir( $dir, "@{[ $entry->class ]}_@{[ $entry->id ]}" );
-    _write_tempfile( File::Spec->catfile( $entry_dir, "entry.yaml" ), MT::Util::YAML::Dump( \%data ) );
+    _write_tempfile( File::Spec->catfile( $entry_dir, "$type.yaml" ), MT::Util::YAML::Dump( \%data ) );
     
     my @categories = ();
     foreach my $category ( @{ $entry->categories() } ) {
@@ -336,7 +360,7 @@ sub _dump_object {
             $data{ tags } = undef;
         }
     }
-    if ( $type eq 'entry' ) {
+    if ( $type eq 'entry' || $type eq 'page' ) {
         my @placement_data = ();
         my @placements = MT->model( 'placement' )->load( { blog_id => $obj->blog_id, entry_id => $obj->id } );
         foreach my $placement ( @placements ) {
@@ -391,6 +415,8 @@ sub _regist_tempfile {
 sub _hdlr_ee_start_import {
     my $app = shift;
     my $blog = $app->blog;
+    my $type = $app->param( '_type' );
+    return $app->trans_error( 'Invalid request' ) unless $type eq 'entry' || $type eq 'page';
     
     eval { require Archive::Zip };
     if ( $@ ) {
@@ -399,7 +425,7 @@ sub _hdlr_ee_start_import {
     
     my %params = (
         blog_id         => $blog->id,
-        _type           => $app->param( '_type' ),
+        _type           => $type,
         magic_token     => $app->current_magic(),
         return_args     => $app->param( 'return_args' ),
     );
@@ -410,6 +436,8 @@ sub _hdlr_ee_importing {
     my $app = shift;
     my $blog = $app->blog;
     $app->validate_magic or return $app->trans_error( 'Permission denied.' );
+    my $type = $app->param( '_type' );
+    return $app->trans_error( 'Invalid request' ) unless $type eq 'entry' || $type eq 'page';
     
     my $q = $app->param;
     if ( my $fh = $q->upload( 'file' ) ) {
@@ -435,7 +463,7 @@ sub _hdlr_ee_importing {
         }
         my %params = (
             blog_id         => $blog->id,
-            _type           => $app->param( '_type' ),
+            _type           => $type,
             out             => $out,
             magic_token     => $app->current_magic(),
             return_args     => $app->param( 'return_args' ),
@@ -454,7 +482,7 @@ sub _hdlr_ee_importing {
         my @target;
         while ( defined ( my $path = readdir( DIR ) ) ) {
             next unless $path !~ /^\./;
-            if ( $path =~ /^entry_\d+/ ) {
+            if ( $path =~ /^(entry|page)_\d+/ ) {
                 push @target, File::Spec->catdir( $dir, $path );
             }
         }
@@ -473,7 +501,7 @@ sub _hdlr_ee_importing {
             
             my %params = (
                 blog_id         => $blog->id,
-                _type           => $app->param( '_type' ),
+                _type           => $type,
                 out             => $out,
                 magic_token     => $app->current_magic(),
                 return_args     => $app->param( 'return_args' ),
@@ -503,7 +531,9 @@ sub _import_entry {
             my $cat_data = $data->{ $key };
             my $old_id = $cat_data->{ id };
             delete $cat_data->{ id };
-            my $obj = MT->model( 'category' )->new;
+            my $class = $cat_data->{ class } eq 'folder' ? 'folder' : 'category';
+            delete $cat_data->{ class };
+            my $obj = MT->model( $class )->new;
             foreach my $field ( keys %$cat_data ) {
                 next unless $obj->can( $field );
                 $obj->$field( $cat_data->{ $field } );
@@ -557,13 +587,23 @@ sub _import_entry {
         }
     }
 
+    my $type = 'entry';
     my $entry_file = File::Spec->catfile( $entry_dir, 'entry.yaml' );
+    unless ( -f $entry_file ) {
+        $type = 'page';
+        $entry_file = File::Spec->catfile( $entry_dir, 'page.yaml' );
+    }
     if ( -f $entry_file ) {
         my $data = MT::Util::YAML::LoadFile( $entry_file );
         
         my $entry_basename = $data->{ basename };
-        my $obj = $entry_basename ? MT->model( 'entry' )->load( { blog_id => $blog->id, basename => $entry_basename } ) : undef;
-        $obj = MT->model( 'entry' )->new unless $obj;
+        my $entry_created_on = $data->{ created_on };
+        my $obj = $entry_basename ? MT->model( $type )->load( { blog_id => $blog->id, basename => $entry_basename, created_on => $entry_created_on } ) : undef;
+        if ( $obj && $obj->modified_on > $data->{ modified_on } ) {
+            MT->log( $plugin->translate( 'The same article is the latest destination. id:[_1](src) [_2](dst) title:[_3] modified_on:[_4](src) [_5](dst)', $data->{id}, $obj->id, $obj->title, $data->{modified_on}, $obj->modified_on ) );
+            return;
+        }
+        $obj = MT->model( $type )->new unless $obj;
         
         my $old_id = $data->{ id };
         delete $data->{ id };
@@ -589,6 +629,7 @@ sub _import_entry {
             foreach my $old_asset_id ( keys %$assets_map ) {
                 my $old_asset_url = $assets_map->{ $old_asset_id };
                 my $asset = $assets{ $old_asset_id };
+                next unless $asset;
                 my $asset_url = $asset->url;
                 $body =~ s/$old_asset_url/$asset_url/g if $body;
                 $more =~ s/$old_asset_url/$asset_url/g if $more;
@@ -635,6 +676,10 @@ sub _import_entry {
             delete $objectasset_data->{ object_id };
             my $old_asset_id = delete $objectasset_data->{ asset_id };
             my $asset = $assets{ $old_asset_id };
+            unless ( $asset ) {
+                MT->log( $plugin->translate( 'Asset is not found. id:[_1](src) entry_id:[_2](src) [_3](dst) title:[_4]', $old_asset_id, $old_id, $obj->id, $obj->title ) );
+                next;
+            }
             my $objectasset = MT->model( 'objectasset' )->new;
             foreach my $field ( keys %$objectasset_data ) {
                 next unless $objectasset->can( $field );
@@ -647,7 +692,7 @@ sub _import_entry {
         }
         
         
-        $objects{ "entry_@{[ $old_id ]}" } = $obj;
+        $objects{ "${type}_@{[ $old_id ]}" } = $obj;
     }
 }
 
@@ -731,6 +776,53 @@ sub _update_or_replace_asset {
         next if defined $child->id;
         _update_or_replace_asset( $child_old_id, $ref_assets );
     }
+}
+
+sub import_entries {
+    my ( $blog, $archive_path ) = @_;
+    my $app = MT->instance;
+    
+    eval { require Archive::Zip };
+    if ( $@ ) {
+        return $app->trans_error( 'Archive::Zip is required.' );
+    }
+    
+    my $filename = File::Basename::basename( $archive_path, '.*' );
+    my $out = $filename . '_' .time;
+    my $dir = File::Spec->catdir( $app->config( 'TempDir' ), $out );
+        
+    require Archive::Zip;
+    my $zip = Archive::Zip->new();
+    unless ( $zip->read( $archive_path ) == 0 ) {
+        return $app->error( $plugin->translate( 'An error in the reading of the ZIP file.' ) );
+    }
+    my @members = $zip->members();
+    foreach my $member ( @members ) {
+        my $name = $member->fileName;
+        $name =~ s!^[/\\]+!!;
+        my $basename = File::Basename::basename( $name );
+        next if ( $basename =~ /^\./ );
+        my $path = File::Spec->catfile ( $dir, $name );
+        $zip->extractMemberWithoutPaths( $member->fileName, $path );
+    }
+    
+    opendir ( DIR, $dir );
+    my @target;
+    while ( defined ( my $path = readdir( DIR ) ) ) {
+        next unless $path !~ /^\./;
+        if ( $path =~ /^(entry|page)_\d+/ ) {
+            push @target, File::Spec->catdir( $dir, $path );
+        }
+    }
+    closedir ( DIR );
+
+    foreach my $entry_dir ( @target ) {
+        _import_entry( $blog, $entry_dir );
+        File::Path::rmtree( $entry_dir );
+    }
+    rmdir $dir;
+    
+    1;
 }
 
 1;
