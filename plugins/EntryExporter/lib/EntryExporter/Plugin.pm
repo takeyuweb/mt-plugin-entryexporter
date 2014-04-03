@@ -704,7 +704,7 @@ sub _update_or_replace_category {
     my ( $old_id, $ref_categories ) = @_;
     my $obj = $ref_categories->{ $old_id };
     my $parent = $obj->parent ? $ref_categories->{ $obj->parent } : undef;
-    my $same_obj = MT->model( 'category' )->load(
+    my $same_obj = MT->model( $obj->class )->load(
         {
             blog_id     => $obj->blog_id,
             basename    => $obj->basename,
