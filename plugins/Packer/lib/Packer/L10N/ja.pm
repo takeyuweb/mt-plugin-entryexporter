@@ -1,7 +1,7 @@
-package EntryExporter::L10N::ja;
+package Packer::L10N::ja;
 
 use strict;
-use base 'EntryExporter::L10N::en_us';
+use base 'Packer::L10N::en_us';
 use utf8;
 
 use vars qw( %Lexicon );

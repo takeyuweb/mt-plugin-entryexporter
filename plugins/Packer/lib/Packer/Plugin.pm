@@ -1,4 +1,4 @@
-package EntryExporter::Plugin;
+package Packer::Plugin;
 
 use strict;
 use utf8;
@@ -9,13 +9,13 @@ use File::Basename;
 use Encode;
 use File::Path;
 
-our $plugin = MT->component( 'EntryExporter' );
+our $plugin = MT->component( 'Packer' );
 
 sub _cb_ts_entry_list_header {
     my ( $cb, $app, $tmpl_ref ) = @_;
     my $mtml = <<'MTML';
 <mt:setvarblock name="system_msg" append="1">
-<__trans_section component="EntryExporter">
+<__trans_section component="Packer">
     <div id="msg-container">
     <mt:if name="request.ee_imported">
         <mtapp:statusmsg

@@ -40,7 +40,7 @@ YAML::Tiny でエラーが発生する場合は YAML::Syck をお試しくださ
 
 ### インストール
 
-plugins/EntryExporter を MovableType がインストールされたディレクトリの plugins ディレクトリ内にアップロードして下さい。
+plugins/Packer を MovableType がインストールされたディレクトリの plugins ディレクトリ内にアップロードして下さい。
 
 その後システムのプラグイン一覧に「Entry Exporter」が追加されていたらOKです。
 

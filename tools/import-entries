@@ -51,8 +51,8 @@ $user or pod2usage("no given user");
 $app->user( $user );
 my $archive_path = $ARGV[0] or pop2usage("no given archivepath");
 
-require EntryExporter::Plugin;
-EntryExporter::Plugin::import_entries( $blog, $archive_path );
+require Packer::Plugin;
+Packer::Plugin::import_entries( $blog, $archive_path );
 
 
 1;

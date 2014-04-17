@@ -1,0 +1,32 @@
+id: Packer
+name: Packer
+key: packer
+description: <__trans phrase="_PLUGIN_DESCRIPTION">
+version: 1.0
+author_link: http://takeyu-web.com/
+author_name: Yuichi Takeuchi
+doc_link: http://blog.takeyu-web.com/mt/myplugins/entryexporter/
+l10n_class: Packer::L10N
+
+applications:
+  cms:
+    methods:
+      ee_start_export: $packer::Packer::Plugin::_hdlr_ee_start_export
+      ee_exporting: $packer::Packer::Plugin::_hdlr_ee_exporting
+      ee_exported: $packer::Packer::Plugin::_hdlr_ee_exported
+      ee_download: $packer::Packer::Plugin::_hdlr_ee_download
+      ee_start_import: $packer::Packer::Plugin::_hdlr_ee_start_import
+      ee_importing: $packer::Packer::Plugin::_hdlr_ee_importing
+
+content_actions:
+    entry: $packer::Packer::Plugin::_content_actions
+    page: $packer::Packer::Plugin::_content_actions
+
+list_actions:
+    entry: $packer::Packer::Plugin::_list_actions
+    page: $packer::Packer::Plugin::_list_actions
+
+callbacks:
+    MT::App::CMS::template_source.entry_list_header: $packer::Packer::Plugin::_cb_ts_entry_list_header
+
+
