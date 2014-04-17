@@ -596,6 +596,7 @@ sub _import_entry {
         my $placements_data = delete $data->{ placements };
         my $objectassets_data = delete $data->{ objectassets };
         
+        my @asset_fields = ();
         my $field_class = MT->model( 'field' );
         foreach my $field ( keys %$data ) {
             my $val = $data->{ $field };
@@ -603,14 +604,17 @@ sub _import_entry {
                 my $basename = $1;
                 if ( defined $field_class ) {
                     my $cf = MT->model( 'field' )->load( { basename => $basename, blog_id => [ $blog->id, 0 ], obj_type => $type } );
-                    if ( $field ) {
+                    if ( $cf ) {
                         my $type = $cf->type;
                         if ( $type eq 'file' ||
                              $type eq 'audio' ||
                              $type eq 'video' ||
                              $type eq 'image' ) {
-                            # TODO:
-                            error_log( $plugin->translate( "Unsupported field type '[_1]'([_2]). skipped.", $type, $basename ) );
+                            push @asset_fields, {
+                                basename    => $basename,
+                                type        => $type,
+                                value       => $val,
+                            };
                         } else {
                             $obj->$field( $val );
                         }
@@ -696,6 +700,26 @@ sub _import_entry {
             $objectasset->save or die $objectasset->errstr;
         }
         
+        foreach my $field_asset_data ( @asset_fields ) {
+            my $basename = $field_asset_data->{ basename };
+            my $field = 'field.' . $basename;
+            my $type = $field_asset_data->{ type };
+            my $val = $field_asset_data->{ val };
+            if ( $val && $val =~ /mt:asset-id="(\d+)"/ ) {
+                my $old_asset_id = $1;
+                my $asset = $assets{ $old_asset_id };
+                unless ( $asset ) {
+                    MT->log( $plugin->translate( 'Asset is not found. id:[_1](src) entry_id:[_2](src) [_3](dst) title:[_4]', $old_asset_id, $old_id, $obj->id, $obj->title ) );
+                    next;
+                }
+                my $asst_id = $asset->id;
+                my $url = $asset->url;
+                my $label = $type eq 'image' ? MT->translate( 'View image' ) : $asset->label;
+                my $new_val = qq{<form mt:asset-id="$asst_id" class="mt-enclosure mt-enclosure-@{[ $type ]}" style="display: inline;"><a href="$url">$label</a></form>};
+                $obj->$field( $new_val );
+            }
+        }
+        $obj->save or die $obj->errstr;
         
         $objects{ "${type}_@{[ $old_id ]}" } = $obj;
     }
