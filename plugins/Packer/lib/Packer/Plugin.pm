@@ -50,12 +50,7 @@ sub _content_actions {
             condition   => sub {
                 my $app = MT->instance->app;
                 my $blog = $app->blog;
-                if ( $type eq 'entry' ) {
-                    return $blog && $blog->is_blog && $app->can_do( 'upload' ) ? 1 : 0;
-                } elsif ( $type eq 'page' ) {
-                    return $blog && $app->can_do( 'upload' ) ? 1 : 0;
-                }
-                return 0;
+                return $blog && $app->can_do( 'create_post' ) && $app->can_do( 'upload' ) ? 1 : 0;
             },
         },
     };
@@ -76,12 +71,7 @@ sub _list_actions {
             condition   => sub {
                 my $blog = MT->instance->app->blog;
                 my $blog = $app->blog;
-                if ( $type eq 'entry' ) {
-                    return $blog && $blog->is_blog && $app->can_do( 'upload' ) ? 1 : 0;
-                } elsif ( $type eq 'page' ) {
-                    return $blog && $app->can_do( 'upload' ) ? 1 : 0;
-                }
-                return 0;
+                return $blog && $app->can_do( 'create_post' ) && $app->can_do( 'upload' ) ? 1 : 0;
             },
         },
     }
