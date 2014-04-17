@@ -596,10 +596,30 @@ sub _import_entry {
         my $placements_data = delete $data->{ placements };
         my $objectassets_data = delete $data->{ objectassets };
         
+        my $field_class = MT->model( 'field' );
         foreach my $field ( keys %$data ) {
-            next unless $obj->can( $field );
             my $val = $data->{ $field };
-            $obj->$field( $val );
+            if ( $field =~ /^\Qfield.\E(.+)$/ ) {
+                my $basename = $1;
+                if ( defined $field_class ) {
+                    my $cf = MT->model( 'field' )->load( { basename => $basename, blog_id => [ $blog->id, 0 ], obj_type => $type } );
+                    if ( $field ) {
+                        my $type = $cf->type;
+                        if ( $type eq 'file' ||
+                             $type eq 'audio' ||
+                             $type eq 'video' ||
+                             $type eq 'image' ) {
+                            # TODO:
+                            error_log( $plugin->translate( "Unsupported field type '[_1]'([_2]). skipped.", $type, $basename ) );
+                        } else {
+                            $obj->$field( $val );
+                        }
+                    }
+                }
+            } else {
+                next unless $obj->can( $field );
+                $obj->$field( $val );
+            }
         }
         $obj->blog_id( $blog->id );
         $obj->author_id( $user ? $user->id : undef );

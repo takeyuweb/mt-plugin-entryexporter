@@ -23,6 +23,7 @@ use vars qw( %Lexicon );
     'Importing...(The remnant number of [_1])' => 'インポート中 残り[_1]件',
     'entries'               => 'ブログ記事',
     'pages'                 => 'ウェブページ',
+    "Unsupported field type '[_1]'([_2]). skipped." => "'[_1]'（[_2]）は未対応のカスタムフィールドタイプです。スキップしました。",
 );
 
 1;
