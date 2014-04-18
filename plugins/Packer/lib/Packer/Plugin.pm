@@ -622,7 +622,15 @@ sub _import_entry {
                 }
             } else {
                 next unless $obj->can( $field );
-                $obj->$field( $val );
+                if ( $field eq 'tags' ) {
+                    if ( ref( $val ) eq 'ARRAY' ) {
+                        $obj->tags( @$val );
+                    } else {
+                        $obj->tags( undef );
+                    }
+                } else {
+                    $obj->$field( $val );
+                }
             }
         }
         $obj->blog_id( $blog->id );
