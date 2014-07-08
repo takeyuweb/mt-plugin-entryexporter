@@ -425,6 +425,7 @@ sub _hdlr_ee_importing {
     return $app->trans_error( 'Invalid request' ) unless $type eq 'entry' || $type eq 'page';
     
     my $q = $app->param;
+    my $override = $app->param( 'override' ) ? 1 : 0;
     if ( my $fh = $q->upload( 'file' ) ) {
         my $tmp_path = $q->tmpFileName( $fh );
         my $filename = File::Basename::basename( $fh, '.*' );
@@ -450,6 +451,7 @@ sub _hdlr_ee_importing {
             blog_id         => $blog->id,
             _type           => $type,
             out             => $out,
+            override        => $override,
             magic_token     => $app->current_magic(),
             return_args     => $app->param( 'return_args' ),
         );
@@ -478,7 +480,7 @@ sub _hdlr_ee_importing {
             my $count = 0;
             my $remnant = scalar @target;
             foreach my $entry_dir ( @target ) {
-                _import_entry( $blog, $entry_dir );
+                _import_entry( $blog, $entry_dir, $override );
                 File::Path::rmtree( $entry_dir );
                 $remnant--;
                 last if ( ++$count == 10 );
@@ -488,6 +490,7 @@ sub _hdlr_ee_importing {
                 blog_id         => $blog->id,
                 _type           => $type,
                 out             => $out,
+                override        => $override,
                 magic_token     => $app->current_magic(),
                 return_args     => $app->param( 'return_args' ),
                 remnant         => $remnant,
@@ -503,7 +506,7 @@ sub _hdlr_ee_importing {
 }
 
 sub _import_entry {
-    my ( $blog, $entry_dir ) = @_;
+    my ( $blog, $entry_dir, $override ) = @_;
     my $app = MT->instance;
     my $user = $app->user;
     my %objects;
@@ -581,14 +584,28 @@ sub _import_entry {
     if ( -f $entry_file ) {
         my $data = MT::Util::YAML::LoadFile( $entry_file );
         
+        my $do_duplicate = 0;
         my $entry_basename = $data->{ basename };
         my $entry_created_on = $data->{ created_on };
+        my $orig;
         my $obj = $entry_basename ? MT->model( $type )->load( { blog_id => $blog->id, basename => $entry_basename, created_on => $entry_created_on } ) : undef;
-        if ( $obj && $obj->modified_on > $data->{ modified_on } ) {
-            MT->log( $plugin->translate( 'The same article is the latest destination. id:[_1](src) [_2](dst) title:[_3] modified_on:[_4](src) [_5](dst)', $data->{id}, $obj->id, $obj->title, $data->{modified_on}, $obj->modified_on ) );
-            return;
+        if ( $override ) {
+            if ( $obj && $obj->modified_on > $data->{ modified_on } ) {
+                _log( $plugin->translate( 'The same article is the latest destination. id:[_1](src) [_2](dst) title:[_3] modified_on:[_4](src) [_5](dst)', $data->{id}, $obj->id, $obj->title, $data->{modified_on}, $obj->modified_on ), $obj->blog );
+                return;
+            }
+            if ( $obj ) {
+                $orig = $obj->clone;
+            } else {
+                $obj = MT->model( $type )->new;
+            }
+        } else {
+            if ( $obj ) {
+                _log( $plugin->translate( 'The same article found, create duplicate article. id:[_1](src) [_2](dst) title:[_3]', $data->{id}, $obj->id, $obj->title ), $obj->blog );
+                $do_duplicate = 1;
+            }
+            $obj = MT->model( $type )->new;
         }
-        $obj = MT->model( $type )->new unless $obj;
         
         my $old_id = $data->{ id };
         delete $data->{ id };
@@ -655,6 +672,12 @@ sub _import_entry {
             $obj->text_more( $more );
         }
         
+        if ( $do_duplicate ) {
+            require MT::Util;
+            $obj->basename( MT::Util::make_unique_basename( $obj ) );
+            $obj->title( $app->translate( "Copy of [_1]", $obj->title ) );
+        }
+        
         $obj->save or die $obj->errstr;
         
         my @old_placements = MT->model( 'placement' )->load( { blog_id => $obj->blog_id, entry_id => $obj->id } );
@@ -694,7 +717,7 @@ sub _import_entry {
             my $old_asset_id = delete $objectasset_data->{ asset_id };
             my $asset = $assets{ $old_asset_id };
             unless ( $asset ) {
-                MT->log( $plugin->translate( 'Asset is not found. id:[_1](src) entry_id:[_2](src) [_3](dst) title:[_4]', $old_asset_id, $old_id, $obj->id, $obj->title ) );
+                _log( $plugin->translate( 'Asset is not found. id:[_1](src) entry_id:[_2](src) [_3](dst) title:[_4]', $old_asset_id, $old_id, $obj->id, $obj->title ), $obj->blog );
                 next;
             }
             my $objectasset = MT->model( 'objectasset' )->new;
@@ -717,7 +740,7 @@ sub _import_entry {
                 my $old_asset_id = $1;
                 my $asset = $assets{ $old_asset_id };
                 unless ( $asset ) {
-                    MT->log( $plugin->translate( 'Asset is not found. id:[_1](src) entry_id:[_2](src) [_3](dst) title:[_4]', $old_asset_id, $old_id, $obj->id, $obj->title ) );
+                    _log( $plugin->translate( 'Asset is not found. id:[_1](src) entry_id:[_2](src) [_3](dst) title:[_4]', $old_asset_id, $old_id, $obj->id, $obj->title ), $obj->blog );
                     next;
                 }
                 my $asst_id = $asset->id;
@@ -728,6 +751,12 @@ sub _import_entry {
             }
         }
         $obj->save or die $obj->errstr;
+        
+        if ( $orig ) {
+            _log( $plugin->translate( 'Updated \'[_1]\' (ID:[_2]).', $obj->title, $obj->id ), $obj->blog );
+        } else {
+            _log( $plugin->translate( 'Imported \'[_1]\' to [_2]', $obj->title, $obj->blog->name ), $obj->blog );
+        }
         
         $objects{ "${type}_@{[ $old_id ]}" } = $obj;
     }
@@ -860,6 +889,27 @@ sub import_entries {
     rmdir $dir;
     
     1;
+}
+
+sub _log {
+    my ( $message, $blog ) = @_;
+    my $app = MT->instance;
+    require MT::Log;
+    my $log = new MT::Log;
+    $log->message( $message );
+    if ( $ENV{REMOTE_ADDR} ) {
+        $log->ip( $ENV{REMOTE_ADDR} );
+    }
+    if ( $blog ) {
+        $log->blog_id( $blog->id );
+    }
+    if ( $app->can( 'user' ) && $app->user ) {
+        $log->author_id( $app->user->id );
+        $log->created_by( $app->user->id );
+    }
+    $log->level( MT::Log::INFO() );
+    $log->category( 'packer' );
+    $log->save;
 }
 
 1;

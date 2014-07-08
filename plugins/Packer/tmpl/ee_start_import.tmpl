@@ -30,8 +30,12 @@
     </mt:If>
     <input type="hidden" name="_type" value="<$MTVar name='_type'$>" />
     
+    <p><input type="file" name="file"/></p>
     
-    <input type="file" name="file"/>
+    <label>
+        <input type="checkbox" name="override" value="1" checked="checked"/>
+        <__trans phrase="Override when article exists.(or skip)" />
+    </label>
     
     <mt:include name="include/actions_bar.tmpl" bar_position="bottom" hide_pager="1" settings_bar="1" />
 </form>
