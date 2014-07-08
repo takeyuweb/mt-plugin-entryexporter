@@ -24,7 +24,7 @@ use vars qw( %Lexicon );
     'entries'               => 'ブログ記事',
     'pages'                 => 'ウェブページ',
     "Unsupported field type '[_1]'([_2]). skipped." => "'[_1]'（[_2]）は未対応のカスタムフィールドタイプです。スキップしました。",
-    'Override when article exists.(or skip)'    => '記事が存在するとき上書きまたはスキップします。',
+    'Override when article exists.(or skip)'    => '記事が存在するとき上書きまたはスキップします。チェックを外すと上書きせずコピーを作成します。',
     'The same article is the latest destination. id:[_1](src) [_2](dst) title:[_3] modified_on:[_4](src) [_5](dst)' => '同じ記事の新しい版が存在します。スキップしました。 インポート元ID:[_1] インポート先ID:[_2] タイトル:[_3] インポート元更新日時:[_4] インポート先更新日時:[_5]',
     'The same article found, create duplicate article. id:[_1](src) [_2](dst) title:[_3]'   => '同じ記事が見つかりました。コピーを作成します。 インポート先ID:[_1] インポート先ID:[_2] タイトル:[_3]',
     'Updated \'[_1]\' (ID:[_2]).'   => "「[_1]」(ID:[_2])を上書きしました。",
