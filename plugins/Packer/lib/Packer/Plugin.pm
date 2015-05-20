@@ -92,6 +92,15 @@ sub _hdlr_ee_start_export {
         $app->setup_filtered_ids;
     }
     my @ids = $app->param( 'id' );
+    my %terms = (
+        blog_id => $blog->id,
+        id      => \@ids,
+    );
+    my $total_count = MT->model( $type )->count( \%terms );
+    unless ( $total_count ) {
+        return return $app->error( 'Object has not been selected. (Please select objects in current website / blog.)' );
+    }
+    
     my %params = (
         blog_id         => $blog->id,
         _type           => $type,
@@ -117,7 +126,6 @@ sub _hdlr_ee_exporting {
         blog_id => $blog->id,
         id      => \@ids,
     );
-    my $args = { offset => $offset, limit =>  $limit, 'sort' => 'id' };
     if ( $out ) {
         my $dir = File::Spec->catdir( $app->config( 'TempDir' ), $out );
         
