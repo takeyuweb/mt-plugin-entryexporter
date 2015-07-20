@@ -298,8 +298,10 @@ sub _export_entry {
     foreach my $object_asset ( @object_assets ) {
         my $asset = MT->model( 'asset' )->load( $object_asset->asset_id );
         next unless $asset;
-        @assets = ( @assets, $asset,  $get_thumbnails->( $asset ) );
+        @assets = ( @assets, $asset, _get_asset_ancestors( $asset ), $get_thumbnails->( $asset ) );
     }
+    my %tmp;
+    @assets = grep { $tmp{$_->id}++ < 1; } (@assets);
     
     require MT::FileMgr;
     my $fmgr = $entry->blog->file_mgr || MT::FileMgr->new( 'Local' );
@@ -322,6 +324,19 @@ sub _export_entry {
         $assets_map{ $asset->id } = $asset->url;
     }
     _write_tempfile( File::Spec->catfile( $entry_dir, "assets_map.yaml" ), MT::Util::YAML::Dump( \%assets_map ) );
+}
+
+
+sub _get_asset_ancestors {
+        my ( $asset, @assets ) = @_;
+        if ( $asset->parent ) {
+            my $parent = MT->model( 'asset' )->load( $asset->parent );
+            if ( $parent ) {
+                push @assets, $parent;
+                @assets = _get_asset_ancestors( $parent, @assets );
+            }
+        }
+        return @assets;
 }
 
 sub _dump_object {
