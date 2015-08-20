@@ -4,7 +4,10 @@
 <p><__trans phrase="Export finished."></p>
 
 <p>Example</p>
+<p><b>Archive files</b></p>
 <p>cd <$mt:var name="path_exporting" escape="html"$>/<$mt:var name="name"$>; zip -r ../<$mt:var name="name"$>.zip .</p>
+<p><b>Import files</b></p>
+<p>cd MT_DIR; perl tools/import-entries --user_id=USERID --blog_id=BLOGID <$mt:var name="name"$>.zip</p>
 <mt:Else>
 <p><__trans phrase="Export finished. Start download."></p>
 
