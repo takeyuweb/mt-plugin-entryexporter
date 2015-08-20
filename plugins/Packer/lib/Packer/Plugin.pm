@@ -114,7 +114,7 @@ sub _hdlr_ee_exporting {
     
     my $type = $app->param( '_type' );
     return $app->trans_error( 'Invalid request' ) unless $type eq 'entry' || $type eq 'page';
-    my $limit = 20;
+    my $limit = $plugin->get_config_value('per_page', 'system');
     my $blog = $app->blog;
     my $page = $app->param( 'page' ) || 1;
     my $offset = ($page - 1) * $limit;
