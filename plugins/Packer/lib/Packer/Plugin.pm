@@ -82,10 +82,13 @@ sub _hdlr_ee_start_export {
     my $blog = $app->blog;
     my $type = $app->param( '_type' );
     return $app->trans_error( 'Invalid request' ) unless $type eq 'entry' || $type eq 'page';
-    
-    eval { require Archive::Zip };
-    if ( $@ ) {
-        return $app->trans_error( 'Archive::Zip is required.' );
+
+    my $path_exporting = $plugin->get_config_value( 'path_exporting', 'system');
+    unless ( $path_exporting ) {
+        eval { require Archive::Zip };
+        if ( $@ ) {
+            return $app->trans_error( 'Archive::Zip is required.' );
+        }
     }
     
     if ( $app->param( 'all_selected' ) ) {
@@ -127,7 +130,13 @@ sub _hdlr_ee_exporting {
         id      => \@ids,
     );
     if ( $out ) {
-        my $dir = File::Spec->catdir( $app->config( 'TempDir' ), $out );
+        my $dir;
+        my $path_exporting = $plugin->get_config_value( 'path_exporting', 'system');
+        if ( $path_exporting ) {
+            $dir = File::Spec->catdir( $path_exporting, ".$out" );
+        } else {
+            $dir = File::Spec->catdir( $app->config( 'TempDir' ), $out );
+        }
         
         my $text = '';
         my $count = 0;
@@ -164,7 +173,8 @@ sub _hdlr_ee_exporting {
                 args => {
                     blog_id => $blog->id,
                     out     => $out,
-                    _type   => $type
+                    _type   => $type,
+                    t         => time
                 }
             )
         );
@@ -178,39 +188,60 @@ sub _hdlr_ee_exported {
     my $type = $app->param( '_type' );
     my $out = $app->param( 'out' ) || '';
     $out = '' if $out =~ /\W/;
+    my $t = int($app->param( 't' ));
     return $app->trans_error( 'Invalid request' ) unless $type eq 'entry' || $type eq 'page';
     
     my $dir;
+    my $path_exporting = $plugin->get_config_value( 'path_exporting', 'system');
     if ( $out ) {
-        $dir = File::Spec->catdir( $app->config( 'TempDir' ), $out );
+        if ( $path_exporting ) {
+            $dir = File::Spec->catdir( $path_exporting, ".$out" );
+        } else {
+            $dir = File::Spec->catdir( $app->config( 'TempDir' ), $out );
+        }
     }
     return return $app->error( 'Temporary directory is not found.' ) unless $dir && -d $dir;
-    
-    eval { require Archive::Zip };
-    if ( $@ ) {
-        return $app->trans_error( 'Archive::Zip is required.' );
+
+     require MT::Util;
+     my @tl = MT::Util::offset_time_list( $t, $blog );
+     my $ts = sprintf '%04d%02d%02d%02d%02d%02d', $tl[5]+1900, $tl[4]+1, @tl[3,2,1,0];
+     my $name  = "@{[ $type eq 'entry' ? 'entries' : 'pages' ]}-@{[ $ts ]}";
+
+    if ( $path_exporting ) {
+        require MT::FileMgr;
+        my $fmgr = MT::FileMgr->new( 'Local' ) or die MT::FileMgr->errstr;
+        my $export_dir = File::Spec->catdir($path_exporting, $name);
+        $fmgr->rename( $dir, $export_dir ) or die 'Rename failed';
+    } else {
+        eval { require Archive::Zip };
+        if ( $@ ) {
+            return $app->trans_error( 'Archive::Zip is required.' );
+        }
+
+        my $zipfile = File::Spec->catdir( $app->config( 'TempDir' ), "$out.zip" );
+        my $zip = Archive::Zip->new();
+        my $code = sub {
+            return unless -f $File::Find::name;
+            my $file = File::Spec->abs2rel( $File::Find::name, $dir );
+            $zip->addFile( File::Spec->catfile( $dir, $file ), MT::I18N::utf8_off( $file ) );
+        };
+        File::Find::find( $code, $dir );
+
+        my $umask = oct MT->config( 'UploadUmask' );
+        my $old   = umask( $umask );
+        $zip->writeToFileNamed( $zipfile );
+        umask( $old );
+
+        _regist_tempfile( $zipfile );
     }
-    
-    my $zipfile = File::Spec->catdir( $app->config( 'TempDir' ), "$out.zip" );
-    my $zip = Archive::Zip->new();
-    my $code = sub {
-        return unless -f $File::Find::name;
-        my $file = File::Spec->abs2rel( $File::Find::name, $dir );
-        $zip->addFile( File::Spec->catfile( $dir, $file ), MT::I18N::utf8_off( $file ) );
-    };
-    File::Find::find( $code, $dir );
-    
-    my $umask = oct MT->config( 'UploadUmask' );
-    my $old   = umask( $umask );
-    $zip->writeToFileNamed( $zipfile );
-    umask( $old );
-    
-    _regist_tempfile( $zipfile );
     
     my %params = (
         blog_id => $blog->id,
         out     => $out,
         _type    => $type,
+        t        => $t,
+        path_exporting => $path_exporting,
+        name => $name,
     );
     $app->build_page('ee_exported.tmpl', \%params);
 }
@@ -221,11 +252,12 @@ sub _hdlr_ee_download {
     my $blog = $app->blog;
     my $out = $app->param( 'out' ) || '';
     $out = '' if $out =~ /\W/;
+    my $t = int($app->param( 't' ));
     my $type = $app->param( '_type' );
     return $app->trans_error( 'Invalid request' ) unless $type eq 'entry' || $type eq 'page';
     
     require MT::Util;
-    my @tl = MT::Util::offset_time_list( time, $blog );
+    my @tl = MT::Util::offset_time_list( $t, $blog );
     my $ts = sprintf '%04d%02d%02d%02d%02d%02d', $tl[5]+1900, $tl[4]+1, @tl[3,2,1,0];
     
     $app->{ no_print_body } = 1;

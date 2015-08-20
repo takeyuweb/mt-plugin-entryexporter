@@ -1,8 +1,29 @@
 <mt:include name="dialog/header.tmpl" />
 
+<mt:If name="path_exporting">
+<p><__trans phrase="Export finished."></p>
+
+<p>Example</p>
+<p>cd <$mt:var name="path_exporting" escape="html"$>/<$mt:var name="name"$>; zip -r ../<$mt:var name="name"$>.zip .</p>
+<mt:Else>
 <p><__trans phrase="Export finished. Start download."></p>
 
 <p>[<a href="javascript: void(0);" onclick="jQuery('#ee_download').submit(); return false;"><__trans phrase="Manual download here."></a>]</p>
+
+<form id="ee_download" action="<$MTVar name='script_url'$>" method="GET">
+    <input type="hidden" name="__mode" value="ee_download" />
+    <input type="hidden" name="blog_id" value="<$MTVar name='blog_id'$>" />
+    <input type="hidden" name="out" value="<$MTVar name='out'$>" />
+    <input type="hidden" name="t" value="<$MTVar name='t'$>" />
+    <input type="hidden" name="_type" value="<$MTVar name='_type'$>" />
+</form>
+
+<mt:SetVarBlock name="jq_js_include" append="1">
+jQuery(function(){
+    jQuery('#ee_download').submit();
+});
+</mt:SetVarBlock>
+</mt:If>
 
 <mt:setvarblock name="action_buttons">
   <button
@@ -15,19 +36,6 @@
 </mt:setvarblock>
 
 <mt:include name="include/actions_bar.tmpl" bar_position="bottom" hide_pager="1" settings_bar="1" />
-
-<form id="ee_download" action="<$MTVar name='script_url'$>" method="GET">
-    <input type="hidden" name="__mode" value="ee_download" />
-    <input type="hidden" name="blog_id" value="<$MTVar name='blog_id'$>" />
-    <input type="hidden" name="out" value="<$MTVar name='out'$>" />
-    <input type="hidden" name="_type" value="<$MTVar name='_type'$>" />
-</form>
-
-<mt:SetVarBlock name="jq_js_include" append="1">
-jQuery(function(){
-    jQuery('#ee_download').submit();
-});
-</mt:SetVarBlock>
 
 <mt:include name="dialog/footer.tmpl" />
 
