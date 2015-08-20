@@ -19,7 +19,7 @@ use vars qw( %Lexicon );
     'Import [_1]'           => '[_1]のインポート',
     'Start the import.'     => 'インポートを開始します。',
     'An error in the reading of the ZIP file.' => 'ZIPファイルの展開に失敗しました。ファイルが壊れているか、正しくアップロードされなかった可能性があります。',
-    'Export finished.'      => 'インポートを完了しました。',
+    'Export finished.'      => 'エクスポートを完了しました。',
     'Importing...(The remnant number of [_1])' => 'インポート中 残り[_1]件',
     'entries'               => 'ブログ記事',
     'pages'                 => 'ウェブページ',
